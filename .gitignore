@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Environment secrets
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ML artifacts (large/binary — don't commit these)
+modeling/model_registry/*
+!modeling/model_registry/.gitkeep
+modeling/experiments/*
+!modeling/experiments/.gitkeep
+
+# Node / Next.js (for later, dashboard phase)
+node_modules/
+.next/
+
+# OS/editor
+.DS_Store
+.vscode/
+*.log

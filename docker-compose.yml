@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: pitchsense_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pitchsense
+      POSTGRES_PASSWORD: pitchsense_dev_password
+      POSTGRES_DB: pitchsense
+    ports:
+      - "5432:5432"
+    volumes:
+      - pitchsense_pgdata:/var/lib/postgresql/data
+
+volumes:
+  pitchsense_pgdata:

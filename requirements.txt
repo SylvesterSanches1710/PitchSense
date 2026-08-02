@@ -1,0 +1,9 @@
+# Phase 1 — Data Collection. We'll add pandas/sklearn/etc in later phases,
+# keeping the environment lean until we actually need each dependency.
+
+sqlalchemy>=2.0
+psycopg2-binary>=2.9
+alembic>=1.13
+python-dotenv>=1.0
+requests>=2.31
+apscheduler>=3.10
