@@ -5,6 +5,18 @@ Design note: `external_id` fields store the ID from whichever data source
 we're using (set in Phase 1's API client). Our own `id` (primary key) is
 never exposed to or dependent on any external API, so swapping data
 providers later never requires touching foreign keys or migrations.
+
+MatchFeature holds one row per match with every engineered feature as a
+column. We start with just Elo; later Phase 2 steps (form, home/away
+splits, head-to-head, rest days, etc.) add columns here rather than
+creating a new table per feature — one row per match, all features
+together, is what makes assembling the final training dataset a single
+clean query instead of a chain of joins across a dozen tables.
+ 
+All feature columns are nullable: a match without enough prior history
+(e.g. a team's very first game in our dataset) legitimately has no valid
+feature value yet, and the model-training step needs to be able to tell
+"missing" apart from "zero".
 """
 
 from __future__ import annotations
@@ -150,3 +162,17 @@ class Injury(Base):
     )
 
     team: Mapped["Team"] = relationship(back_populates="injuries")
+
+class MatchFeature(Base):
+    __tablename__ = "match_features"
+ 
+    id: Mapped[int] = mapped_column(primary_key=True)
+    match_id: Mapped[int] = mapped_column(ForeignKey("matches.id"), unique=True)
+ 
+    # Elo ratings going INTO the match (pre-match) — this is the actual
+    # predictive feature. Post-match ratings are used only to seed the
+    # next match's pre-match value, not stored here.
+    elo_home_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    elo_away_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+ 
+    match: Mapped["Match"] = relationship()
