@@ -174,5 +174,7 @@ class MatchFeature(Base):
     # next match's pre-match value, not stored here.
     elo_home_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
     elo_away_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    form_home_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    form_away_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
  
     match: Mapped["Match"] = relationship()

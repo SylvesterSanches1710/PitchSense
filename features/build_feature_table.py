@@ -9,6 +9,7 @@ Usage:
 from database.models import Match, MatchFeature, MatchStatus
 from database.session import SessionLocal
 from features.elo import MatchResult, compute_elo_ratings
+from features.form import compute_form_features
 
 
 def load_finished_matches_chronological(session) -> list[MatchResult]:
@@ -32,20 +33,27 @@ def load_finished_matches_chronological(session) -> list[MatchResult]:
     ]
 
 
-def upsert_elo_features(session, snapshots) -> int:
+def upsert_features(session, elo_snapshots, form_snapshots) -> int:
+    form_by_match_id = {s.match_id: s for s in form_snapshots}
     updated_count = 0
-    for snapshot in snapshots:
+
+    for elo_snapshot in elo_snapshots:
         feature_row = (
             session.query(MatchFeature)
-            .filter_by(match_id=snapshot.match_id)
+            .filter_by(match_id=elo_snapshot.match_id)
             .first()
         )
         if feature_row is None:
-            feature_row = MatchFeature(match_id=snapshot.match_id)
+            feature_row = MatchFeature(match_id=elo_snapshot.match_id)
             session.add(feature_row)
 
-        feature_row.elo_home_pre = snapshot.elo_home_pre
-        feature_row.elo_away_pre = snapshot.elo_away_pre
+        feature_row.elo_home_pre = elo_snapshot.elo_home_pre
+        feature_row.elo_away_pre = elo_snapshot.elo_away_pre
+
+        form_snapshot = form_by_match_id[elo_snapshot.match_id]
+        feature_row.form_home_pre = form_snapshot.form_home_pre
+        feature_row.form_away_pre = form_snapshot.form_away_pre
+
         updated_count += 1
 
     session.commit()
@@ -56,14 +64,14 @@ def main():
     session = SessionLocal()
     try:
         matches = load_finished_matches_chronological(session)
-        print(f"Computing Elo across {len(matches)} finished matches...")
+        print(f"Computing features across {len(matches)} finished matches...")
 
-        snapshots, final_ratings = compute_elo_ratings(matches)
-        updated_count = upsert_elo_features(session, snapshots)
+        elo_snapshots, final_ratings = compute_elo_ratings(matches)
+        form_snapshots = compute_form_features(matches)
 
-        print(f"Wrote Elo features for {updated_count} matches.")
+        updated_count = upsert_features(session, elo_snapshots, form_snapshots)
+        print(f"Wrote features for {updated_count} matches.")
 
-        # Quick sanity check: show the 5 highest-rated teams right now.
         top_teams = sorted(final_ratings.items(), key=lambda kv: kv[1], reverse=True)[:5]
         print("\nCurrent top 5 Elo ratings:")
         for team_id, rating in top_teams:
