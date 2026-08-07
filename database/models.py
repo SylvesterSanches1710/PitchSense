@@ -176,5 +176,11 @@ class MatchFeature(Base):
     elo_away_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
     form_home_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
     form_away_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    home_venue_form_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    away_venue_form_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    home_goals_scored_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    home_goals_conceded_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    away_goals_scored_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    away_goals_conceded_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
  
     match: Mapped["Match"] = relationship()

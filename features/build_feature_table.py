@@ -1,6 +1,6 @@
 """
-Computes Elo ratings across all finished matches (in chronological order)
-and writes the pre-match ratings into match_features.
+Computes engineered features across all finished matches (in chronological
+order) and writes the pre-match values into match_features.
 
 Usage:
     python -m features.build_feature_table
@@ -10,6 +10,8 @@ from database.models import Match, MatchFeature, MatchStatus
 from database.session import SessionLocal
 from features.elo import MatchResult, compute_elo_ratings
 from features.form import compute_form_features
+from features.venue_form import compute_venue_form_features
+from features.goals import compute_goals_features
 
 
 def load_finished_matches_chronological(session) -> list[MatchResult]:
@@ -33,8 +35,21 @@ def load_finished_matches_chronological(session) -> list[MatchResult]:
     ]
 
 
-def upsert_features(session, elo_snapshots, form_snapshots) -> int:
+def upsert_features(
+    session,
+    elo_snapshots,
+    form_snapshots,
+    venue_form_snapshots,
+    goals_snapshots,
+) -> int:
     form_by_match_id = {s.match_id: s for s in form_snapshots}
+    venue_form_by_match_id = {
+        s.match_id: s for s in venue_form_snapshots
+    }
+    goals_by_match_id = {
+    s.match_id: s for s in goals_snapshots
+    }
+
     updated_count = 0
 
     for elo_snapshot in elo_snapshots:
@@ -43,16 +58,31 @@ def upsert_features(session, elo_snapshots, form_snapshots) -> int:
             .filter_by(match_id=elo_snapshot.match_id)
             .first()
         )
+
         if feature_row is None:
             feature_row = MatchFeature(match_id=elo_snapshot.match_id)
             session.add(feature_row)
 
+        # Elo
         feature_row.elo_home_pre = elo_snapshot.elo_home_pre
         feature_row.elo_away_pre = elo_snapshot.elo_away_pre
 
+        # Overall form
         form_snapshot = form_by_match_id[elo_snapshot.match_id]
         feature_row.form_home_pre = form_snapshot.form_home_pre
         feature_row.form_away_pre = form_snapshot.form_away_pre
+
+        # Venue-specific form
+        venue_snapshot = venue_form_by_match_id[elo_snapshot.match_id]
+        feature_row.home_venue_form_pre = venue_snapshot.home_venue_form_pre
+        feature_row.away_venue_form_pre = venue_snapshot.away_venue_form_pre
+
+        # Goals
+        goals_snapshot = goals_by_match_id[elo_snapshot.match_id]
+        feature_row.home_goals_scored_avg_pre = goals_snapshot.home_goals_scored_avg_pre
+        feature_row.home_goals_conceded_avg_pre = goals_snapshot.home_goals_conceded_avg_pre
+        feature_row.away_goals_scored_avg_pre = goals_snapshot.away_goals_scored_avg_pre
+        feature_row.away_goals_conceded_avg_pre = goals_snapshot.away_goals_conceded_avg_pre
 
         updated_count += 1
 
@@ -68,14 +98,29 @@ def main():
 
         elo_snapshots, final_ratings = compute_elo_ratings(matches)
         form_snapshots = compute_form_features(matches)
+        venue_form_snapshots = compute_venue_form_features(matches)
+        goals_snapshots = compute_goals_features(matches)
 
-        updated_count = upsert_features(session, elo_snapshots, form_snapshots)
+        updated_count = upsert_features(
+            session,
+            elo_snapshots,
+            form_snapshots,
+            venue_form_snapshots,
+            goals_snapshots,
+        )
+
         print(f"Wrote features for {updated_count} matches.")
 
-        top_teams = sorted(final_ratings.items(), key=lambda kv: kv[1], reverse=True)[:5]
+        top_teams = sorted(
+            final_ratings.items(),
+            key=lambda kv: kv[1],
+            reverse=True,
+        )[:5]
+
         print("\nCurrent top 5 Elo ratings:")
         for team_id, rating in top_teams:
             print(f"  team_id={team_id}: {rating:.1f}")
+
     finally:
         session.close()
 
