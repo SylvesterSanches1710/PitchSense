@@ -12,6 +12,7 @@ from features.elo import MatchResult, compute_elo_ratings
 from features.form import compute_form_features
 from features.venue_form import compute_venue_form_features
 from features.goals import compute_goals_features
+from features.head_to_head import compute_head_to_head_features
 
 
 def load_finished_matches_chronological(session) -> list[MatchResult]:
@@ -41,14 +42,13 @@ def upsert_features(
     form_snapshots,
     venue_form_snapshots,
     goals_snapshots,
+    h2h_snapshots,
 ) -> int:
     form_by_match_id = {s.match_id: s for s in form_snapshots}
-    venue_form_by_match_id = {
-        s.match_id: s for s in venue_form_snapshots
-    }
-    goals_by_match_id = {
-    s.match_id: s for s in goals_snapshots
-    }
+    venue_form_by_match_id = {s.match_id: s for s in venue_form_snapshots}
+    goals_by_match_id = {s.match_id: s for s in goals_snapshots}
+
+    h2h_by_match_id = {s.match_id: s for s in h2h_snapshots}
 
     updated_count = 0
 
@@ -80,9 +80,20 @@ def upsert_features(
         # Goals
         goals_snapshot = goals_by_match_id[elo_snapshot.match_id]
         feature_row.home_goals_scored_avg_pre = goals_snapshot.home_goals_scored_avg_pre
-        feature_row.home_goals_conceded_avg_pre = goals_snapshot.home_goals_conceded_avg_pre
+        feature_row.home_goals_conceded_avg_pre = (
+            goals_snapshot.home_goals_conceded_avg_pre
+        )
         feature_row.away_goals_scored_avg_pre = goals_snapshot.away_goals_scored_avg_pre
-        feature_row.away_goals_conceded_avg_pre = goals_snapshot.away_goals_conceded_avg_pre
+        feature_row.away_goals_conceded_avg_pre = (
+            goals_snapshot.away_goals_conceded_avg_pre
+        )
+
+        # Head-to-head
+        h2h_snapshot = h2h_by_match_id[elo_snapshot.match_id]
+
+        feature_row.h2h_home_ppg_pre = h2h_snapshot.h2h_home_ppg_pre
+        feature_row.h2h_away_ppg_pre = h2h_snapshot.h2h_away_ppg_pre
+        feature_row.h2h_meetings_pre = h2h_snapshot.h2h_meetings_pre
 
         updated_count += 1
 
@@ -100,6 +111,7 @@ def main():
         form_snapshots = compute_form_features(matches)
         venue_form_snapshots = compute_venue_form_features(matches)
         goals_snapshots = compute_goals_features(matches)
+        h2h_snapshots = compute_head_to_head_features(matches)
 
         updated_count = upsert_features(
             session,
@@ -107,6 +119,7 @@ def main():
             form_snapshots,
             venue_form_snapshots,
             goals_snapshots,
+            h2h_snapshots,
         )
 
         print(f"Wrote features for {updated_count} matches.")
