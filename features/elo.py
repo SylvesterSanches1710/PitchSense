@@ -8,6 +8,7 @@ debugging, with no DB required).
 """
 
 from dataclasses import dataclass
+import datetime
 
 STARTING_ELO = 1500.0
 K_FACTOR = 20.0
@@ -21,6 +22,7 @@ class MatchResult:
     away_team_id: int
     home_score: int
     away_score: int
+    kickoff_utc: "datetime.datetime"
 
 
 @dataclass

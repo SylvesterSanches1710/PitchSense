@@ -13,6 +13,7 @@ from features.form import compute_form_features
 from features.venue_form import compute_venue_form_features
 from features.goals import compute_goals_features
 from features.head_to_head import compute_head_to_head_features
+from features.rest_days import compute_rest_days_features
 
 
 def load_finished_matches_chronological(session) -> list[MatchResult]:
@@ -31,6 +32,7 @@ def load_finished_matches_chronological(session) -> list[MatchResult]:
             away_team_id=m.away_team_id,
             home_score=m.home_score,
             away_score=m.away_score,
+            kickoff_utc=m.kickoff_utc,
         )
         for m in matches
     ]
@@ -43,12 +45,13 @@ def upsert_features(
     venue_form_snapshots,
     goals_snapshots,
     h2h_snapshots,
+    rest_days_snapshots,
 ) -> int:
     form_by_match_id = {s.match_id: s for s in form_snapshots}
     venue_form_by_match_id = {s.match_id: s for s in venue_form_snapshots}
     goals_by_match_id = {s.match_id: s for s in goals_snapshots}
-
     h2h_by_match_id = {s.match_id: s for s in h2h_snapshots}
+    rest_days_by_match_id = {s.match_id: s for s in rest_days_snapshots}
 
     updated_count = 0
 
@@ -95,6 +98,11 @@ def upsert_features(
         feature_row.h2h_away_ppg_pre = h2h_snapshot.h2h_away_ppg_pre
         feature_row.h2h_meetings_pre = h2h_snapshot.h2h_meetings_pre
 
+        # Rest days
+        rest_days_snapshot = rest_days_by_match_id[elo_snapshot.match_id]
+        feature_row.home_rest_days_pre = rest_days_snapshot.home_rest_days_pre
+        feature_row.away_rest_days_pre = rest_days_snapshot.away_rest_days_pre
+
         updated_count += 1
 
     session.commit()
@@ -112,6 +120,7 @@ def main():
         venue_form_snapshots = compute_venue_form_features(matches)
         goals_snapshots = compute_goals_features(matches)
         h2h_snapshots = compute_head_to_head_features(matches)
+        rest_days_snapshots = compute_rest_days_features(matches)
 
         updated_count = upsert_features(
             session,
@@ -120,6 +129,7 @@ def main():
             venue_form_snapshots,
             goals_snapshots,
             h2h_snapshots,
+            rest_days_snapshots,
         )
 
         print(f"Wrote features for {updated_count} matches.")

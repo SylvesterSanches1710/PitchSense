@@ -185,5 +185,7 @@ class MatchFeature(Base):
     h2h_home_ppg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
     h2h_away_ppg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
     h2h_meetings_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    home_rest_days_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    away_rest_days_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
  
     match: Mapped["Match"] = relationship()
