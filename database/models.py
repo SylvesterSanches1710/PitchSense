@@ -12,7 +12,7 @@ splits, head-to-head, rest days, etc.) add columns here rather than
 creating a new table per feature — one row per match, all features
 together, is what makes assembling the final training dataset a single
 clean query instead of a chain of joins across a dozen tables.
- 
+
 All feature columns are nullable: a match without enough prior history
 (e.g. a team's very first game in our dataset) legitimately has no valid
 feature value yet, and the model-training step needs to be able to tell
@@ -57,6 +57,7 @@ class Team(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     external_id: Mapped[str] = mapped_column(String(50), unique=True)
+    api_football_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     name: Mapped[str] = mapped_column(String(100))
     short_name: Mapped[str | None] = mapped_column(String(20), nullable=True)
     league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id"))
@@ -81,12 +82,13 @@ class MatchStatus(str, enum.Enum):
 
 class Match(Base):
     __tablename__ = "matches"
-    __table_args__ = (
-        UniqueConstraint("external_id", name="uq_match_external_id"),
-    )
+    __table_args__ = (UniqueConstraint("external_id", name="uq_match_external_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     external_id: Mapped[str] = mapped_column(String(50))
+    api_football_fixture_id: Mapped[str | None] = mapped_column(
+        String(50), nullable=True
+    )
     league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id"))
     season: Mapped[str] = mapped_column(String(20))  # e.g. "2024-2025"
 
@@ -155,7 +157,9 @@ class Injury(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"))
     player_name: Mapped[str] = mapped_column(String(100))
-    status: Mapped[str] = mapped_column(String(50))  # "injured", "suspended", "doubtful"
+    status: Mapped[str] = mapped_column(
+        String(50)
+    )  # "injured", "suspended", "doubtful"
     reported_date: Mapped[datetime.date] = mapped_column(DateTime, nullable=True)
     expected_return: Mapped[datetime.date | None] = mapped_column(
         DateTime, nullable=True
@@ -163,12 +167,13 @@ class Injury(Base):
 
     team: Mapped["Team"] = relationship(back_populates="injuries")
 
+
 class MatchFeature(Base):
     __tablename__ = "match_features"
- 
+
     id: Mapped[int] = mapped_column(primary_key=True)
     match_id: Mapped[int] = mapped_column(ForeignKey("matches.id"), unique=True)
- 
+
     # Elo ratings going INTO the match (pre-match) — this is the actual
     # predictive feature. Post-match ratings are used only to seed the
     # next match's pre-match value, not stored here.
@@ -178,14 +183,44 @@ class MatchFeature(Base):
     form_away_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
     home_venue_form_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
     away_venue_form_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
-    home_goals_scored_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
-    home_goals_conceded_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
-    away_goals_scored_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
-    away_goals_conceded_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    home_goals_scored_avg_pre: Mapped[float | None] = mapped_column(
+        Float, nullable=True
+    )
+    home_goals_conceded_avg_pre: Mapped[float | None] = mapped_column(
+        Float, nullable=True
+    )
+    away_goals_scored_avg_pre: Mapped[float | None] = mapped_column(
+        Float, nullable=True
+    )
+    away_goals_conceded_avg_pre: Mapped[float | None] = mapped_column(
+        Float, nullable=True
+    )
     h2h_home_ppg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
     h2h_away_ppg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
     h2h_meetings_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
     home_rest_days_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
     away_rest_days_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
- 
+
+
+class MatchStats(Base):
+    __tablename__ = "match_stats"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    match_id: Mapped[int] = mapped_column(
+        ForeignKey("matches.id"),
+        unique=True,
+    )
+    fetched_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True))
+
+    home_shots_total: Mapped[float | None] = mapped_column(Float, nullable=True)
+    away_shots_total: Mapped[float | None] = mapped_column(Float, nullable=True)
+    home_possession_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    away_possession_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    home_corners: Mapped[float | None] = mapped_column(Float, nullable=True)
+    away_corners: Mapped[float | None] = mapped_column(Float, nullable=True)
+    home_yellow_cards: Mapped[float | None] = mapped_column(Float, nullable=True)
+    away_yellow_cards: Mapped[float | None] = mapped_column(Float, nullable=True)
+    home_red_cards: Mapped[float | None] = mapped_column(Float, nullable=True)
+    away_red_cards: Mapped[float | None] = mapped_column(Float, nullable=True)
+
     match: Mapped["Match"] = relationship()
