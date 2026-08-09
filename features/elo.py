@@ -23,6 +23,7 @@ class MatchResult:
     home_score: int
     away_score: int
     kickoff_utc: "datetime.datetime"
+    season: str
 
 
 @dataclass

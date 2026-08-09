@@ -15,6 +15,7 @@ from features.goals import compute_goals_features
 from features.head_to_head import compute_head_to_head_features
 from features.rest_days import compute_rest_days_features
 from features.match_stats_features import RawMatchStats, compute_match_stats_features
+from features.league_position import compute_league_position_features
 
 
 def load_finished_matches_chronological(session) -> list[MatchResult]:
@@ -34,9 +35,12 @@ def load_finished_matches_chronological(session) -> list[MatchResult]:
             home_score=m.home_score,
             away_score=m.away_score,
             kickoff_utc=m.kickoff_utc,
+            season=m.season,
         )
         for m in matches
     ]
+
+
 def load_raw_match_stats(session) -> dict[int, RawMatchStats]:
     rows = session.query(MatchStats).all()
     return {
@@ -51,6 +55,7 @@ def load_raw_match_stats(session) -> dict[int, RawMatchStats]:
         for row in rows
     }
 
+
 def upsert_features(
     session,
     elo_snapshots,
@@ -60,6 +65,7 @@ def upsert_features(
     h2h_snapshots,
     rest_days_snapshots,
     match_stats_snapshots,
+    league_position_snapshots,
 ) -> int:
     form_by_match_id = {s.match_id: s for s in form_snapshots}
     venue_form_by_match_id = {s.match_id: s for s in venue_form_snapshots}
@@ -67,6 +73,7 @@ def upsert_features(
     h2h_by_match_id = {s.match_id: s for s in h2h_snapshots}
     rest_days_by_match_id = {s.match_id: s for s in rest_days_snapshots}
     match_stats_by_match_id = {s.match_id: s for s in match_stats_snapshots}
+    league_position_by_match_id = {s.match_id: s for s in league_position_snapshots}
 
     updated_count = 0
 
@@ -121,12 +128,22 @@ def upsert_features(
         # Rolling shots / possession / corners
         match_stats_snapshot = match_stats_by_match_id[elo_snapshot.match_id]
 
-        feature_row.home_shots_avg_pre = (match_stats_snapshot.home_shots_avg_pre)
-        feature_row.away_shots_avg_pre = (match_stats_snapshot.away_shots_avg_pre)
-        feature_row.home_possession_avg_pre = (match_stats_snapshot.home_possession_avg_pre)
-        feature_row.away_possession_avg_pre = (match_stats_snapshot.away_possession_avg_pre)
-        feature_row.home_corners_avg_pre = (match_stats_snapshot.home_corners_avg_pre)
-        feature_row.away_corners_avg_pre = (match_stats_snapshot.away_corners_avg_pre)
+        feature_row.home_shots_avg_pre = match_stats_snapshot.home_shots_avg_pre
+        feature_row.away_shots_avg_pre = match_stats_snapshot.away_shots_avg_pre
+        feature_row.home_possession_avg_pre = (
+            match_stats_snapshot.home_possession_avg_pre
+        )
+        feature_row.away_possession_avg_pre = (
+            match_stats_snapshot.away_possession_avg_pre
+        )
+        feature_row.home_corners_avg_pre = match_stats_snapshot.home_corners_avg_pre
+        feature_row.away_corners_avg_pre = match_stats_snapshot.away_corners_avg_pre
+
+        # League position
+        league_position_snapshot = league_position_by_match_id[elo_snapshot.match_id]
+
+        feature_row.home_position_pre = league_position_snapshot.home_position_pre
+        feature_row.away_position_pre = league_position_snapshot.away_position_pre
 
         updated_count += 1
 
@@ -148,7 +165,11 @@ def main():
         goals_snapshots = compute_goals_features(matches)
         h2h_snapshots = compute_head_to_head_features(matches)
         rest_days_snapshots = compute_rest_days_features(matches)
-        match_stats_snapshots = compute_match_stats_features(matches,raw_stats_by_match_id,)
+        match_stats_snapshots = compute_match_stats_features(
+            matches,
+            raw_stats_by_match_id,
+        )
+        league_position_snapshots = compute_league_position_features(matches)
 
         updated_count = upsert_features(
             session,
@@ -159,6 +180,7 @@ def main():
             h2h_snapshots,
             rest_days_snapshots,
             match_stats_snapshots,
+            league_position_snapshots,
         )
 
         print(f"Wrote features for {updated_count} matches.")

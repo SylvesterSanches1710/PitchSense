@@ -206,6 +206,8 @@ class MatchFeature(Base):
     away_possession_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
     home_corners_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
     away_corners_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    home_position_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    away_position_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class MatchStats(Base):
