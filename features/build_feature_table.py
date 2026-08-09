@@ -16,6 +16,9 @@ from features.head_to_head import compute_head_to_head_features
 from features.rest_days import compute_rest_days_features
 from features.match_stats_features import RawMatchStats, compute_match_stats_features
 from features.league_position import compute_league_position_features
+from collections import defaultdict
+from database.models import Injury
+from features.injuries import MatchInjuryInput, compute_injury_features
 
 
 def load_finished_matches_chronological(session) -> list[MatchResult]:
@@ -56,6 +59,19 @@ def load_raw_match_stats(session) -> dict[int, RawMatchStats]:
     }
 
 
+def load_injury_counts(session) -> dict[tuple[int, int], dict[str, int]]:
+    counts: dict[tuple[int, int], dict[str, int]] = defaultdict(
+        lambda: {"injury": 0, "suspension": 0}
+    )
+    rows = session.query(Injury.match_id, Injury.team_id, Injury.status).filter(
+        Injury.match_id.isnot(None)
+    )
+    for match_id, team_id, status in rows:
+        bucket = "suspension" if "suspen" in (status or "").lower() else "injury"
+        counts[(match_id, team_id)][bucket] += 1
+    return dict(counts)
+
+
 def upsert_features(
     session,
     elo_snapshots,
@@ -66,6 +82,7 @@ def upsert_features(
     rest_days_snapshots,
     match_stats_snapshots,
     league_position_snapshots,
+    injury_snapshots,
 ) -> int:
     form_by_match_id = {s.match_id: s for s in form_snapshots}
     venue_form_by_match_id = {s.match_id: s for s in venue_form_snapshots}
@@ -74,6 +91,7 @@ def upsert_features(
     rest_days_by_match_id = {s.match_id: s for s in rest_days_snapshots}
     match_stats_by_match_id = {s.match_id: s for s in match_stats_snapshots}
     league_position_by_match_id = {s.match_id: s for s in league_position_snapshots}
+    injury_by_match_id = {s.match_id: s for s in injury_snapshots}
 
     updated_count = 0
 
@@ -145,6 +163,18 @@ def upsert_features(
         feature_row.home_position_pre = league_position_snapshot.home_position_pre
         feature_row.away_position_pre = league_position_snapshot.away_position_pre
 
+        # Injuries / suspensions
+        injury_snapshot = injury_by_match_id[elo_snapshot.match_id]
+
+        feature_row.home_injuries_count_pre = injury_snapshot.home_injuries_count_pre
+        feature_row.away_injuries_count_pre = injury_snapshot.away_injuries_count_pre
+        feature_row.home_suspensions_count_pre = (
+            injury_snapshot.home_suspensions_count_pre
+        )
+        feature_row.away_suspensions_count_pre = (
+            injury_snapshot.away_suspensions_count_pre
+        )
+
         updated_count += 1
 
     session.commit()
@@ -158,6 +188,31 @@ def main():
         print(f"Computing features across {len(matches)} finished matches...")
 
         raw_stats_by_match_id = load_raw_match_stats(session)
+
+        injury_fetch_status = {
+            match_id: injuries_fetched_at
+            for match_id, injuries_fetched_at in session.query(
+                Match.id,
+                Match.injuries_fetched_at,
+            )
+        }
+
+        match_injury_inputs = [
+            MatchInjuryInput(
+                match_id=m.match_id,
+                home_team_id=m.home_team_id,
+                away_team_id=m.away_team_id,
+                injuries_fetched=injury_fetch_status.get(m.match_id) is not None,
+            )
+            for m in matches
+        ]
+
+        injury_counts = load_injury_counts(session)
+
+        injury_snapshots = compute_injury_features(
+            match_injury_inputs,
+            injury_counts,
+        )
 
         elo_snapshots, final_ratings = compute_elo_ratings(matches)
         form_snapshots = compute_form_features(matches)
@@ -181,6 +236,7 @@ def main():
             rest_days_snapshots,
             match_stats_snapshots,
             league_position_snapshots,
+            injury_snapshots,
         )
 
         print(f"Wrote features for {updated_count} matches.")

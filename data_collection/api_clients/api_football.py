@@ -80,3 +80,13 @@ class ApiFootballClient:
         stats coverage — that's a valid response, not an error."""
         data = self._get("/fixtures/statistics", params={"fixture": fixture_id})
         return data["response"]
+
+    def get_fixture_injuries(self, fixture_id: str) -> list[dict]:
+        """One call per fixture. Returns one record per player ruled out
+        for THIS specific match, each tagged with a reason (e.g.
+        'Hamstring Injury', 'Suspended', 'Illness'). An empty list can
+        mean either a genuinely clean team news report or no injury
+        coverage for this fixture — the response alone can't distinguish
+        the two, same ambiguity as fixture statistics."""
+        data = self._get("/injuries", params={"fixture": fixture_id})
+        return data["response"]
