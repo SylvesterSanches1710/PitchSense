@@ -221,6 +221,7 @@ class MatchFeature(Base):
     away_yellow_cards_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
     home_red_cards_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
     away_red_cards_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    away_travel_km_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
 class MatchStats(Base):

@@ -6,7 +6,7 @@ Usage:
     python -m features.build_feature_table
 """
 
-from database.models import Match, MatchFeature, MatchStatus, MatchStats
+from database.models import Match, MatchFeature, MatchStatus, MatchStats, Team
 from database.session import SessionLocal
 from features.elo import MatchResult, compute_elo_ratings
 from features.form import compute_form_features
@@ -20,6 +20,7 @@ from collections import defaultdict
 from database.models import Injury
 from features.injuries import MatchInjuryInput, compute_injury_features
 from features.cards import RawCardStats, compute_cards_features
+from features.travel_distance import compute_travel_features
 
 
 def load_finished_matches_chronological(session) -> list[MatchResult]:
@@ -73,6 +74,14 @@ def load_raw_cards(session) -> dict[int, RawCardStats]:
     }
 
 
+def load_match_team_names(session, matches) -> list[tuple[int, str, str]]:
+    team_name_by_id = {team.id: team.name for team in session.query(Team).all()}
+    return [
+        (m.match_id, team_name_by_id[m.home_team_id], team_name_by_id[m.away_team_id])
+        for m in matches
+    ]
+
+
 def load_injury_counts(session) -> dict[tuple[int, int], dict[str, int]]:
     counts: dict[tuple[int, int], dict[str, int]] = defaultdict(
         lambda: {"injury": 0, "suspension": 0}
@@ -98,6 +107,7 @@ def upsert_features(
     league_position_snapshots,
     injury_snapshots,
     cards_snapshots,
+    travel_features,
 ) -> int:
     form_by_match_id = {s.match_id: s for s in form_snapshots}
     venue_form_by_match_id = {s.match_id: s for s in venue_form_snapshots}
@@ -108,6 +118,7 @@ def upsert_features(
     league_position_by_match_id = {s.match_id: s for s in league_position_snapshots}
     injury_by_match_id = {s.match_id: s for s in injury_snapshots}
     cards_by_match_id = {s.match_id: s for s in cards_snapshots}
+    travel_by_match_id = {s.match_id: s for s in travel_features}
 
     updated_count = 0
 
@@ -199,6 +210,10 @@ def upsert_features(
         feature_row.home_red_cards_avg_pre = cards_snapshot.home_red_cards_avg_pre
         feature_row.away_red_cards_avg_pre = cards_snapshot.away_red_cards_avg_pre
 
+        # Travel distance
+        travel_snapshot = travel_by_match_id[elo_snapshot.match_id]
+        feature_row.away_travel_km_pre = travel_snapshot.away_travel_km_pre
+
         updated_count += 1
 
     session.commit()
@@ -254,6 +269,8 @@ def main():
             raw_cards_by_match_id,
         )
         league_position_snapshots = compute_league_position_features(matches)
+        match_team_names = load_match_team_names(session, matches)
+        travel_features = compute_travel_features(match_team_names)
 
         updated_count = upsert_features(
             session,
@@ -267,6 +284,7 @@ def main():
             league_position_snapshots,
             injury_snapshots,
             cards_snapshots,
+            travel_features,
         )
 
         print(f"Wrote features for {updated_count} matches.")
