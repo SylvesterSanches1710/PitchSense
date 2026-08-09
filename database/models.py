@@ -200,6 +200,12 @@ class MatchFeature(Base):
     h2h_meetings_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
     home_rest_days_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
     away_rest_days_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    home_shots_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    away_shots_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    home_possession_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    away_possession_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    home_corners_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    away_corners_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
 class MatchStats(Base):
