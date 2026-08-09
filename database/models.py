@@ -217,6 +217,10 @@ class MatchFeature(Base):
     away_injuries_count_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
     home_suspensions_count_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
     away_suspensions_count_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    home_yellow_cards_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    away_yellow_cards_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    home_red_cards_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    away_red_cards_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
 class MatchStats(Base):

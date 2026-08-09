@@ -19,6 +19,7 @@ from features.league_position import compute_league_position_features
 from collections import defaultdict
 from database.models import Injury
 from features.injuries import MatchInjuryInput, compute_injury_features
+from features.cards import RawCardStats, compute_cards_features
 
 
 def load_finished_matches_chronological(session) -> list[MatchResult]:
@@ -59,6 +60,19 @@ def load_raw_match_stats(session) -> dict[int, RawMatchStats]:
     }
 
 
+def load_raw_cards(session) -> dict[int, RawCardStats]:
+    rows = session.query(MatchStats).all()
+    return {
+        row.match_id: RawCardStats(
+            home_yellow_cards=row.home_yellow_cards,
+            away_yellow_cards=row.away_yellow_cards,
+            home_red_cards=row.home_red_cards,
+            away_red_cards=row.away_red_cards,
+        )
+        for row in rows
+    }
+
+
 def load_injury_counts(session) -> dict[tuple[int, int], dict[str, int]]:
     counts: dict[tuple[int, int], dict[str, int]] = defaultdict(
         lambda: {"injury": 0, "suspension": 0}
@@ -83,6 +97,7 @@ def upsert_features(
     match_stats_snapshots,
     league_position_snapshots,
     injury_snapshots,
+    cards_snapshots,
 ) -> int:
     form_by_match_id = {s.match_id: s for s in form_snapshots}
     venue_form_by_match_id = {s.match_id: s for s in venue_form_snapshots}
@@ -92,6 +107,7 @@ def upsert_features(
     match_stats_by_match_id = {s.match_id: s for s in match_stats_snapshots}
     league_position_by_match_id = {s.match_id: s for s in league_position_snapshots}
     injury_by_match_id = {s.match_id: s for s in injury_snapshots}
+    cards_by_match_id = {s.match_id: s for s in cards_snapshots}
 
     updated_count = 0
 
@@ -175,6 +191,14 @@ def upsert_features(
             injury_snapshot.away_suspensions_count_pre
         )
 
+        # Cards
+        cards_snapshot = cards_by_match_id[elo_snapshot.match_id]
+
+        feature_row.home_yellow_cards_avg_pre = cards_snapshot.home_yellow_cards_avg_pre
+        feature_row.away_yellow_cards_avg_pre = cards_snapshot.away_yellow_cards_avg_pre
+        feature_row.home_red_cards_avg_pre = cards_snapshot.home_red_cards_avg_pre
+        feature_row.away_red_cards_avg_pre = cards_snapshot.away_red_cards_avg_pre
+
         updated_count += 1
 
     session.commit()
@@ -188,6 +212,7 @@ def main():
         print(f"Computing features across {len(matches)} finished matches...")
 
         raw_stats_by_match_id = load_raw_match_stats(session)
+        raw_cards_by_match_id = load_raw_cards(session)
 
         injury_fetch_status = {
             match_id: injuries_fetched_at
@@ -224,6 +249,10 @@ def main():
             matches,
             raw_stats_by_match_id,
         )
+        cards_snapshots = compute_cards_features(
+            matches,
+            raw_cards_by_match_id,
+        )
         league_position_snapshots = compute_league_position_features(matches)
 
         updated_count = upsert_features(
@@ -237,6 +266,7 @@ def main():
             match_stats_snapshots,
             league_position_snapshots,
             injury_snapshots,
+            cards_snapshots,
         )
 
         print(f"Wrote features for {updated_count} matches.")
