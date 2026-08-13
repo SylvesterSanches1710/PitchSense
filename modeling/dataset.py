@@ -89,6 +89,28 @@ def time_based_split(
     return train_df, test_df
 
 
+def time_based_split_three_way(
+    df: pd.DataFrame,
+    train_season: str = "2023-2024",
+    validation_season: str = "2024-2025",
+    test_season: str = "2025-2026",
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Same no-leakage principle as time_based_split, split three ways
+    instead of two — needed for early stopping. The VALIDATION season is
+    what boosting models watch during training to know when to stop
+    adding trees (to avoid overfitting); the TEST season stays completely
+    untouched until final evaluation, exactly like time_based_split's
+    test set. Never use the test season for any tuning decision,
+    including early stopping — that would be the same category of
+    leakage as a random split, just one step removed.
+    """
+    train_df = df[df["season"] == train_season].reset_index(drop=True)
+    validation_df = df[df["season"] == validation_season].reset_index(drop=True)
+    test_df = df[df["season"] == test_season].reset_index(drop=True)
+    return train_df, validation_df, test_df
+
+
 def main():
     session = SessionLocal()
     try:
