@@ -15,6 +15,14 @@ from catboost import CatBoostClassifier
 from database.models import Match, MatchFeature, Odds, Team
 from database.session import SessionLocal
 from modeling.dataset import FEATURE_COLUMNS
+from modeling.betting_math import (
+    remove_vig,
+    calculate_ev,
+    kelly_stake_fraction,
+    check_low_data_warning,
+    CLASS_TO_LABEL,
+    KELLY_FRACTION,
+)
 
 MODEL_PATH = Path("modeling/model_registry/catboost_v1.cbm")
 METADATA_PATH = Path("modeling/model_registry/catboost_v1_metadata.json")
@@ -25,56 +33,56 @@ METADATA_PATH = Path("modeling/model_registry/catboost_v1_metadata.json")
 # overconfident on high-probability Away Win predictions). Quarter-Kelly
 # gives most of Kelly's growth benefit with much less exposure to being
 # wrong about your own edge.
-KELLY_FRACTION = 0.25
+# KELLY_FRACTION = 0.25
 
-CLASS_TO_LABEL = {"H": "Home Win", "D": "Draw", "A": "Away Win"}
+# CLASS_TO_LABEL = {"H": "Home Win", "D": "Draw", "A": "Away Win"}
 
-# A team whose Elo still sits within this many points of the 1500
-# starting default has effectively played very few real matches — Elo
-# moves away from 1500 quickly once a team has genuine history. Combined
-# with form_pre being None (zero prior matches on record at all), this
-# catches newly-promoted or otherwise data-sparse teams automatically,
-# instead of relying on manually remembering to check.
-LOW_DATA_ELO_THRESHOLD = 15.0
-
-
-def check_low_data_warning(
-    team_name: str, elo_pre: float | None, form_pre: float | None
-) -> str | None:
-    if form_pre is None:
-        return f"{team_name}: zero prior matches on record — likely newly promoted or new to this dataset."
-    if elo_pre is not None and abs(elo_pre - 1500.0) < LOW_DATA_ELO_THRESHOLD:
-        return f"{team_name}: Elo still near the 1500 default ({elo_pre:.1f}) — very little real history to draw on."
-    return None
+# # A team whose Elo still sits within this many points of the 1500
+# # starting default has effectively played very few real matches — Elo
+# # moves away from 1500 quickly once a team has genuine history. Combined
+# # with form_pre being None (zero prior matches on record at all), this
+# # catches newly-promoted or otherwise data-sparse teams automatically,
+# # instead of relying on manually remembering to check.
+# LOW_DATA_ELO_THRESHOLD = 15.0
 
 
-def remove_vig(home_odds: float, draw_odds: float, away_odds: float) -> dict:
-    """Converts raw bookmaker odds to fair (vig-removed) implied
-    probability, via the standard proportional method: raw implied
-    probabilities are computed per outcome, then normalized to sum to 1.
-    This is a stated simplification — more sophisticated de-vig methods
-    (e.g. Shin's method) exist and can differ slightly, but proportional
-    is the standard, simplest, and widely-used approach."""
-    raw = {"H": 1 / home_odds, "D": 1 / draw_odds, "A": 1 / away_odds}
-    overround = sum(raw.values())
-    return {k: v / overround for k, v in raw.items()}, overround
+# def check_low_data_warning(
+#     team_name: str, elo_pre: float | None, form_pre: float | None
+# ) -> str | None:
+#     if form_pre is None:
+#         return f"{team_name}: zero prior matches on record — likely newly promoted or new to this dataset."
+#     if elo_pre is not None and abs(elo_pre - 1500.0) < LOW_DATA_ELO_THRESHOLD:
+#         return f"{team_name}: Elo still near the 1500 default ({elo_pre:.1f}) — very little real history to draw on."
+#     return None
 
 
-def calculate_ev(model_prob: float, decimal_odds: float) -> float:
-    """Expected value per unit staked, using the ACTUAL odds offered
-    (not the vig-removed 'fair' odds) — that's the price you'd really
-    get paid at, so it's what determines real expected return."""
-    return model_prob * decimal_odds - 1
+# def remove_vig(home_odds: float, draw_odds: float, away_odds: float) -> dict:
+#     """Converts raw bookmaker odds to fair (vig-removed) implied
+#     probability, via the standard proportional method: raw implied
+#     probabilities are computed per outcome, then normalized to sum to 1.
+#     This is a stated simplification — more sophisticated de-vig methods
+#     (e.g. Shin's method) exist and can differ slightly, but proportional
+#     is the standard, simplest, and widely-used approach."""
+#     raw = {"H": 1 / home_odds, "D": 1 / draw_odds, "A": 1 / away_odds}
+#     overround = sum(raw.values())
+#     return {k: v / overround for k, v in raw.items()}, overround
 
 
-def kelly_stake_fraction(model_prob: float, decimal_odds: float) -> float:
-    """Full Kelly fraction: what fraction of bankroll to stake for
-    theoretically optimal long-run growth, GIVEN that model_prob is
-    exactly correct. Negative when there's no edge (EV <= 0) — always
-    clamp to 0 in that case, never bet with a negative Kelly fraction."""
-    b = decimal_odds - 1  # net odds
-    numerator = model_prob * decimal_odds - 1
-    return max(0.0, numerator / b)
+# def calculate_ev(model_prob: float, decimal_odds: float) -> float:
+#     """Expected value per unit staked, using the ACTUAL odds offered
+#     (not the vig-removed 'fair' odds) — that's the price you'd really
+#     get paid at, so it's what determines real expected return."""
+#     return model_prob * decimal_odds - 1
+
+
+# def kelly_stake_fraction(model_prob: float, decimal_odds: float) -> float:
+#     """Full Kelly fraction: what fraction of bankroll to stake for
+#     theoretically optimal long-run growth, GIVEN that model_prob is
+#     exactly correct. Negative when there's no edge (EV <= 0) — always
+#     clamp to 0 in that case, never bet with a negative Kelly fraction."""
+#     b = decimal_odds - 1  # net odds
+#     numerator = model_prob * decimal_odds - 1
+#     return max(0.0, numerator / b)
 
 
 def main():
