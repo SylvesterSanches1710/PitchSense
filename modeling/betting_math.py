@@ -9,10 +9,6 @@ CLASS_TO_LABEL = {"H": "Home Win", "D": "Draw", "A": "Away Win"}
 
 KELLY_FRACTION = 0.25  # quarter-Kelly — see docstring below for why
 
-# A team whose Elo still sits within this many points of the 1500
-# starting default has effectively played very few real matches.
-LOW_DATA_ELO_THRESHOLD = 15.0
-
 
 def remove_vig(home_odds: float, draw_odds: float, away_odds: float) -> tuple[dict, float]:
     """Converts raw bookmaker odds to fair (vig-removed) implied
@@ -46,12 +42,23 @@ def kelly_stake_fraction(model_prob: float, decimal_odds: float) -> float:
 
 
 def check_low_data_warning(team_name: str, elo_pre: float | None, form_pre: float | None) -> str | None:
-    """Returns a human-readable warning string if this team has too
-    little history to trust the model's output for it, or None if fine."""
+    """
+    Returns a human-readable warning string if this team has too little
+    history to trust the model's output for it, or None if fine.
+
+    Deliberately uses ONLY the zero-prior-matches signal (form_pre is
+    None), not Elo proximity to the 1500 default. An earlier version
+    also flagged Elo near 1500 as low-data — that produced a false
+    positive on Nottingham Forest, a team with a full 3 seasons of
+    history whose Elo had simply and legitimately settled near the
+    league-average midpoint. "Elo near 1500" can mean either "no data"
+    or "plenty of data showing an average team" — those look identical
+    from the number alone, so it's not a reliable low-data signal.
+    form_pre being None has no such ambiguity: it can only mean zero
+    matches on record, ever.
+    """
     if form_pre is None:
         return f"{team_name}: zero prior matches on record — likely newly promoted or new to this dataset."
-    if elo_pre is not None and abs(elo_pre - 1500.0) < LOW_DATA_ELO_THRESHOLD:
-        return f"{team_name}: Elo still near the 1500 default ({elo_pre:.1f}) — very little real history to draw on."
     return None
 
 
