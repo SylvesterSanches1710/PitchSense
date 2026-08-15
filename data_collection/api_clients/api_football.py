@@ -14,10 +14,8 @@ BASE_URL = "https://v3.football.api-sports.io"
 
 PREMIER_LEAGUE_ID = 39
 
-# CORRECTED: the free plan enforces 10 requests/minute (not just the
-# 100/day cap) — confirmed from API-Football's own rate-limit docs. 6.5s
-# between requests keeps us under that with margin, same safety approach
-# used for football-data.org's 10/min limit.
+# The free plan enforces 10 requests/minute (not just the 100/day cap).
+# 6.5s between requests keeps us under that with margin.
 _MIN_SECONDS_BETWEEN_REQUESTS = 6.5
 
 _MAX_RETRIES = 3
@@ -71,6 +69,15 @@ class ApiFootballClient:
         data = self._get("/fixtures", params={"league": league_id, "season": season})
         return data["response"]
 
+    def get_fixtures_by_date(self, date_str: str) -> list[dict]:
+        """Fixtures across ALL competitions on a specific calendar date
+        (format: YYYY-MM-DD) — not a season archive pull and not the
+        paid-only 'next' parameter, so neither restriction applies here.
+        Returns fixtures from every league on that date; filter by
+        league ID yourself for Premier League specifically."""
+        data = self._get("/fixtures", params={"date": date_str})
+        return data["response"]
+
     def get_fixture_statistics(self, fixture_id: str) -> list[dict]:
         """One call per fixture — this is the expensive part that the
         free tier's limits actually constrain. Returns a list of
@@ -89,4 +96,14 @@ class ApiFootballClient:
         coverage for this fixture — the response alone can't distinguish
         the two, same ambiguity as fixture statistics."""
         data = self._get("/injuries", params={"fixture": fixture_id})
+        return data["response"]
+
+    def get_fixture_odds(self, fixture_id: str) -> list[dict]:
+        """One call per fixture. Returns odds grouped by bookmaker, each
+        with a list of markets ('bets'), each with a list of outcomes
+        ('values'). An empty list means no odds coverage for this fixture
+        — for UPCOMING fixtures this usually means odds just haven't been
+        posted yet (try again closer to kickoff); for anything more than
+        7 days old, API-Football simply doesn't retain odds data at all."""
+        data = self._get("/odds", params={"fixture": fixture_id})
         return data["response"]

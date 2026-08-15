@@ -122,6 +122,9 @@ class Match(Base):
     injuries_fetched_at: Mapped["datetime.datetime | None"] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    odds_fetched_at: Mapped["datetime.datetime | None"] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class Odds(Base):
@@ -170,7 +173,9 @@ class Injury(Base):
     )
 
     team: Mapped["Team"] = relationship(back_populates="injuries")
-    match_id: Mapped[int | None] = mapped_column(ForeignKey("matches.id"), nullable=True)
+    match_id: Mapped[int | None] = mapped_column(
+        ForeignKey("matches.id"), nullable=True
+    )
 
 
 class MatchFeature(Base):
@@ -215,10 +220,18 @@ class MatchFeature(Base):
     away_position_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
     home_injuries_count_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
     away_injuries_count_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    home_suspensions_count_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    away_suspensions_count_pre: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    home_yellow_cards_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
-    away_yellow_cards_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
+    home_suspensions_count_pre: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )
+    away_suspensions_count_pre: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )
+    home_yellow_cards_avg_pre: Mapped[float | None] = mapped_column(
+        Float, nullable=True
+    )
+    away_yellow_cards_avg_pre: Mapped[float | None] = mapped_column(
+        Float, nullable=True
+    )
     home_red_cards_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
     away_red_cards_avg_pre: Mapped[float | None] = mapped_column(Float, nullable=True)
     away_travel_km_pre: Mapped[float | None] = mapped_column(Float, nullable=True)

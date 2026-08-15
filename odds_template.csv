@@ -1,0 +1,12 @@
+match_id,kickoff_utc,home_team,away_team,home_odds,draw_odds,away_odds
+1141,2026-08-21T19:00:00+00:00,Arsenal FC,Coventry City FC,1.19,7.4,16
+1142,2026-08-22T11:30:00+00:00,Hull City AFC,Manchester United FC,7.4,4.9,1.42
+1143,2026-08-22T14:00:00+00:00,Ipswich Town FC,Sunderland AFC,2.75,3.35,2.65
+1144,2026-08-22T14:00:00+00:00,Nottingham Forest FC,Leeds United FC,2.27,3.35,2.65
+1145,2026-08-22T14:00:00+00:00,Everton FC,Crystal Palace FC,2.17,3.45,3.45
+1146,2026-08-22T16:30:00+00:00,Brentford FC,Tottenham Hotspur FC,2.41,3.65,2.85
+1147,2026-08-23T13:00:00+00:00,Manchester City FC,AFC Bournemouth,1.48,5,6
+1148,2026-08-23T13:00:00+00:00,Brighton & Hove Albion FC,Aston Villa FC,2.29,3.7,3
+1149,2026-08-23T15:30:00+00:00,Newcastle United FC,Liverpool FC,3.6,4,1.95
+1150,2026-08-24T19:00:00+00:00,Fulham FC,Chelsea FC,3.25,3.75,2.15
+1151,2026-08-28T19:00:00+00:00,Crystal Palace FC,Manchester City FC,,,
