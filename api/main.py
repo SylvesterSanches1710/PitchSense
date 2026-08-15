@@ -13,7 +13,7 @@ code touches it.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routers import matches
+from api.routers import matches, performance
 
 app = FastAPI(
     title="PitchSense API",
@@ -34,6 +34,7 @@ app.add_middleware(
 )
 
 app.include_router(matches.router, prefix="/matches", tags=["matches"])
+app.include_router(performance.router, prefix="/model", tags=["model"])
 
 
 @app.get("/health")
