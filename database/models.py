@@ -259,3 +259,42 @@ class MatchStats(Base):
     away_red_cards: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     match: Mapped["Match"] = relationship()
+
+class BetStatus(str, enum.Enum):
+    PENDING = "pending"
+    WON = "won"
+    LOST = "lost"
+    VOID = "void"  # match postponed/abandoned, or bet cancelled
+ 
+ 
+class Bet(Base):
+    """
+    A record of a bet YOU actually placed on Stake — this table never
+    places bets automatically, it's a log you fill in after making a
+    real decision, plus a settlement step once the match finishes.
+    """
+    __tablename__ = "bets"
+ 
+    id: Mapped[int] = mapped_column(primary_key=True)
+    match_id: Mapped[int] = mapped_column(ForeignKey("matches.id"))
+    outcome: Mapped[str] = mapped_column(String(1))  # "H", "D", or "A"
+ 
+    stake: Mapped[float] = mapped_column(Float)
+    odds_taken: Mapped[float] = mapped_column(Float)
+    bookmaker: Mapped[str] = mapped_column(String(50), default="Stake")
+ 
+    # Snapshot of what the model/EV said AT THE TIME of the bet — kept
+    # even though MatchFeature/predictions can change later, so a bet
+    # logged today still shows what actually justified it, unaffected
+    # by the model being retrained or features being recomputed later.
+    model_prob_at_bet: Mapped[float] = mapped_column(Float)
+    ev_at_bet: Mapped[float] = mapped_column(Float)
+ 
+    status: Mapped[BetStatus] = mapped_column(Enum(BetStatus), default=BetStatus.PENDING)
+    profit_loss: Mapped[float | None] = mapped_column(Float, nullable=True)
+ 
+    placed_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True))
+    settled_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    notes: Mapped[str | None] = mapped_column(String(500), nullable=True)
+ 
+    match: Mapped["Match"] = relationship()
