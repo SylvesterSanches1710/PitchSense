@@ -47,6 +47,31 @@ def build_combined_match_list(session, target_match_ids: list[int]) -> list[Matc
     if missing:
         raise ValueError(f"Match ids not found in database: {missing}")
 
+    # CRITICAL SAFETY CHECK: if the same team appears in more than one
+    # target match, an earlier target's placeholder score would get
+    # treated as a real result and contaminate a later target's history
+    # (form/Elo/goals/position all wrongly updated from a match that
+    # hasn't actually been played). This exact bug produced a nonsense
+    # league position for a team's genuine season opener. Rather than
+    # risk this silently recurring, refuse to proceed rather than
+    # produce quietly-wrong features — run one match_id at a time
+    # instead if you need features for multiple matches involving
+    # overlapping teams.
+    team_appearance_count: dict[int, int] = {}
+    for m in targets:
+        team_appearance_count[m.home_team_id] = team_appearance_count.get(m.home_team_id, 0) + 1
+        team_appearance_count[m.away_team_id] = team_appearance_count.get(m.away_team_id, 0) + 1
+    overlapping_teams = [team_id for team_id, count in team_appearance_count.items() if count > 1]
+    if overlapping_teams:
+        raise ValueError(
+            f"Team id(s) {overlapping_teams} appear in more than one of the target "
+            f"matches in this batch. Processing them together would let an earlier "
+            f"target match's placeholder score contaminate a later one's computed "
+            f"history. Run build_live_features with ONE match_id at a time instead — "
+            f"e.g. call this script separately for each match rather than passing "
+            f"multiple match IDs that share a team."
+        )
+
     combined = sorted(list(finished) + list(targets), key=lambda m: m.kickoff_utc)
 
     return [
